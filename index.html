@@ -3,39 +3,92 @@
 <head>
     <title>Google Map Embed Example</title>
     <style>
-        /* Optional styling for the map container */
+        /* 地図コンテナのスタイル */
         #map-container {
-            position: relative; /* Position relative for absolute positioning */
-            width: 100%; /* Make the container width 100% of its parent */
-            height: 0; /* Set initial height to 0 to maintain aspect ratio */
-            padding-bottom: 56.25%; /* Aspect ratio (height/width) of 16:9 */
+            position: relative;
+            width: 100%;
+            height: 0;
+            padding-bottom: 56.25%;
         }
         #map-container iframe {
-            position: absolute; /* Position absolute so it fills the container */
-            top: 0; /* Align iframe to the top of the container */
-            left: 0; /* Align iframe to the left of the container */
-            width: 100%; /* Make the iframe width 100% of the container */
-            height: 100%; /* Make the iframe height 100% of the container */
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
         }
-        /* Style for the reload button */
-        .reload-button {
+        #drawing-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9998;
+            display: none;
+        }
+        /* ボタンのスタイル */
+        .button-container {
             position: absolute;
             top: 10px;
             right: 10px;
-            z-index: 9999; /* Ensure it's above the map */
+            z-index: 9999;
+            display: flex;
+            gap: 10px;
+        }
+        .button-container button {
             background-color: #ffffff;
             border: 1px solid #ccc;
             border-radius: 4px;
             padding: 5px 10px;
             cursor: pointer;
         }
+        /* ペンツールウィンドウのスタイル */
+        .tool-window {
+            position: absolute;
+            top: 50px;
+            left: 50px;
+            width: 300px;
+            background-color: #f9f9f9;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            z-index: 10000;
+            display: none;
+        }
+        .tool-window .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: move;
+        }
+        .tool-window .header .close-btn, .tool-window .header .minimize-btn {
+            cursor: pointer;
+        }
+        .tool-window .tool-options {
+            margin-top: 10px;
+        }
+        .tool-window .tool-options label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .weather-icon {
+            width: 332px;
+            height: 332px;
+            position: absolute;
+            cursor: move;
+        }
     </style>
 </head>
 <body>
 
-<!-- Replace "YOUR_API_KEY" with your actual API key -->
 <div id="map-container">
-    <button class="reload-button" onclick="reloadMap()">Reload</button>
+    <canvas id="drawing-canvas"></canvas>
+    <div class="button-container">
+        <button class="reload-button" onclick="reloadMap()">リロード</button>
+        <button class="pen-tool-button" onclick="toggleToolWindow('pen-tool-window')">ペンツール</button>
+        <button class="weather-tool-button" onclick="toggleToolWindow('weather-tool-window')">天気ツール</button>
+    </div>
     <iframe
         frameborder="0"
         style="border:0"
@@ -43,12 +96,225 @@
     </iframe>
 </div>
 
+<div id="pen-tool-window" class="tool-window">
+    <div class="header">
+        <span>ペンツール</span>
+        <span class="minimize-btn" onclick="minimizeToolWindow('pen-tool-window')">─</span>
+        <span class="close-btn" onclick="toggleToolWindow('pen-tool-window')">✖</span>
+    </div>
+    <div class="tool-options">
+        <label>
+            ペンサイズ:
+            <select id="pen-size">
+                <option value="2">2px</option>
+                <option value="4">4px</option>
+                <option value="6">6px</option>
+                <option value="8">8px</option>
+                <option value="10">10px</option>
+            </select>
+        </label>
+        <label>
+            色:
+            <input type="color" id="pen-color" value="#000000">
+        </label>
+        <button onclick="useEraser()">消しゴム</button>
+        <button onclick="clearCanvas()">全消し</button>
+    </div>
+</div>
+
+<div id="weather-tool-window" class="tool-window">
+    <div class="header">
+        <span>天気ツール</span>
+        <span class="minimize-btn" onclick="minimizeToolWindow('weather-tool-window')">─</span>
+        <span class="close-btn" onclick="toggleToolWindow('weather-tool-window')">✖</span>
+    </div>
+    <div class="tool-options">
+        <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEiaLQPi4hmTNQJq2cG-7HEn4fBQFfPXi1sVnpvE7GiN1s2jb9VTUihZ3QS6JIY6JHGA_tZE0M9H0Vw38GseIChOt2nLeabJe-dATLgnmhxVWI_fl_GV_9MeKSG6aNUivHYCR688z7U1xmKG/s1600/mark_tenki_hare.png" class="weather-icon" id="sunny-icon" alt="Sunny" onclick="selectIcon(this)">
+        <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEi8kxIOuDv8qbPWwLkCkFSZFyxk0UG8KDebkEcJXLoXmx3v0PeJHcKVtaok4RPQvEEsN9q2MFgXsAWNVepCuR0t5jA4Sanw2hVvrfWnaRkXCoYEd7cI-wrdvSBFNx09TwwpLc6s1cb6Q5cV/s1600/mark_tenki_kumori.png" class="weather-icon" id="cloudy-icon" alt="Cloudy" onclick="selectIcon(this)">
+        <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgqhcAxdnCPa6wbLjT95MZzO6e5am0p5i0X1n0OPWzfQo1T3IZUJK_cL_CYdGy99KMfSWk_BJ20B6Le99nGJiFkhBX0w16P_eEkOPzpmw8hSswOJAUKR7go99x3Qi5d0MR2U_G5m5i4Zi29/s1600/mark_tenki_umbrella.png" class="weather-icon" id="rain-icon" alt="Rain" onclick="selectIcon(this)">
+        <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgoVgokmDpxXETNWeL_helXC-glGBMCDyMW6-kFs1zjGb1NfhVcepOL8lmVN-ObibJgr7BezZ7Pc-CpQkzHH4iLjLU7vQFjUoMb9ga8saKZ5yhnZGU9OFkjshbiYjKi3Ld6fD36WqBntc4/s1600/tenki_snow.png" class="weather-icon" id="snow-icon" alt="Snow" onclick="selectIcon(this)">
+    </div>
+</div>
+
 <script>
-    function reloadMap() {
+    let isPenToolWindowVisible = false;
+    let isWeatherToolWindowVisible = false;
+    let isDrawing = false;
+    let penSize = 2;
+    let penColor = '#000000';
+    let canvas, ctx;
+    let selectedIcon = null;
+
+    window.onload = function() {
+        canvas = document.getElementById('drawing-canvas');
+        ctx = canvas.getContext('2d');
+        resizeCanvas();
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        canvas.addEventListener('touchstart', startDrawing);
+        canvas.addEventListener('touchmove', draw);
+        canvas.addEventListener('touchend', stopDrawing);
+        canvas.addEventListener('touchcancel', stopDrawing);
+
+        document.getElementById('pen-size').addEventListener('change', function() {
+            penSize = this.value;
+        });
+
+        document.getElementById('pen-color').addEventListener('change', function() {
+            penColor = this.value;
+        });
+
+        document.getElementById('pen-color').addEventListener('change', function() {
+            penColor = this.value;
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+
+        dragElement(document.getElementById('pen-tool-window'));
+        dragElement(document.getElementById('weather-tool-window'));
+        };
+
+        function resizeCanvas() {
+        canvas.width = document.getElementById('map-container').clientWidth;
+        canvas.height = document.getElementById('map-container').clientHeight;
+        }
+
+        function startDrawing(e) {
+        if (!isPenToolWindowVisible) return;
+        isDrawing = true;
+        ctx.beginPath();
+        ctx.moveTo(e.offsetX || e.touches[0].clientX - canvas.offsetLeft, e.offsetY || e.touches[0].clientY - canvas.offsetTop);
+        }
+
+        function draw(e) {
+        if (!isDrawing) return;
+        ctx.lineTo(e.offsetX || e.touches[0].clientX - canvas.offsetLeft, e.offsetY || e.touches[0].clientY - canvas.offsetTop);
+        ctx.strokeStyle = penColor;
+        ctx.lineWidth = penSize;
+        ctx.stroke();
+        }
+
+        function stopDrawing() {
+        if (!isDrawing) return;
+        isDrawing = false;
+        ctx.closePath();
+        }
+
+        function toggleToolWindow(windowId) {
+        const toolWindow = document.getElementById(windowId);
+        const isVisible = toolWindow.style.display === 'block';
+        toolWindow.style.display = isVisible ? 'none' : 'block';
+        if (windowId === 'pen-tool-window') {
+            isPenToolWindowVisible = !isVisible;
+            document.getElementById('drawing-canvas').style.display = isPenToolWindowVisible ? 'block' : 'none';
+        } else if (windowId === 'weather-tool-window') {
+            isWeatherToolWindowVisible = !isVisible;
+        }
+        }
+
+        function minimizeToolWindow(windowId) {
+        const toolWindow = document.getElementById(windowId);
+        const toolOptions = toolWindow.querySelector('.tool-options');
+        toolOptions.style.display = toolOptions.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function reloadMap() {
         var iframe = document.querySelector('#map-container iframe');
         iframe.src = iframe.src;
-    }
-</script>
+        }
 
-</body>
-</html>
+        function useEraser() {
+        penColor = '#FFFFFF';
+        }
+
+        function clearCanvas() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function dragElement(element) {
+        let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+        const header = element.querySelector('.header');
+
+        if (header) {
+            header.onmousedown = dragMouseDown;
+        } else {
+            element.onmousedown = dragMouseDown;
+        }
+
+        element.ontouchstart = dragMouseDown;
+
+        function dragMouseDown(e) {
+            e = e || window.event;
+            e.preventDefault();
+            pos3 = e.clientX || e.touches[0].clientX;
+            pos4 = e.clientY || e.touches[0].clientY;
+            document.onmouseup = closeDragElement;
+            document.onmousemove = elementDrag;
+            document.ontouchend = closeDragElement;
+            document.ontouchmove = elementDrag;
+        }
+
+        function elementDrag(e) {
+            e = e || window.event;
+            e.preventDefault();
+            pos1 = pos3 - (e.clientX || e.touches[0].clientX);
+            pos2 = pos4 - (e.clientY || e.touches[0].clientY);
+            pos3 = e.clientX || e.touches[0].clientX;
+            pos4 = e.clientY || e.touches[0].clientY;
+            element.style.top = (element.offsetTop - pos2) + "px";
+            element.style.left = (element.offsetLeft - pos1) + "px";
+        }
+
+        function closeDragElement() {
+            document.onmouseup = null;
+            document.onmousemove = null;
+            document.ontouchend = null;
+            document.ontouchmove = null;
+        }
+        }
+
+        function selectIcon(icon) {
+        selectedIcon = icon;
+        icon.ondragstart = function() { return false; };
+
+        icon.onmousedown = function(e) {
+            e.preventDefault();
+            moveAt(e.pageX, e.pageY);
+            document.onmousemove = function(e) {
+                moveAt(e.pageX, e.pageY);
+            };
+            document.onmouseup = function() {
+                document.onmousemove = null;
+                icon.onmouseup = null;
+            };
+        };
+
+        icon.ontouchstart = function(e) {
+            e.preventDefault();
+            moveAt(e.touches[0].pageX, e.touches[0].pageY);
+            document.ontouchmove = function(e) {
+                moveAt(e.touches[0].pageX, e.touches[0].pageY);
+            };
+            document.ontouchend = function() {
+                document.ontouchmove = null;
+                icon.ontouchend = null;
+            };
+        };
+
+        icon.ondblclick = function() {
+            icon.remove();
+        };
+
+        function moveAt(pageX, pageY) {
+            icon.style.left = pageX - icon.offsetWidth / 2 + 'px';
+            icon.style.top = pageY - icon.offsetHeight / 2 + 'px';
+        }
+        }
+        </script>
+
+        </body>
+        </html>
