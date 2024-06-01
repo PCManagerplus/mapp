@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Google Map Embed Example</title>
+    <style>
+        /* Optional styling for the map container */
+        #map-container {
+            position: relative; /* Position relative for absolute positioning */
+            width: 100%; /* Make the container width 100% of its parent */
+            height: 0; /* Set initial height to 0 to maintain aspect ratio */
+            padding-bottom: 56.25%; /* Aspect ratio (height/width) of 16:9 */
+        }
+        #map-container iframe {
+            position: absolute; /* Position absolute so it fills the container */
+            top: 0; /* Align iframe to the top of the container */
+            left: 0; /* Align iframe to the left of the container */
+            width: 100%; /* Make the iframe width 100% of the container */
+            height: 100%; /* Make the iframe height 100% of the container */
+        }
+        /* Style for the reload button */
+        .reload-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 9999; /* Ensure it's above the map */
+            background-color: #ffffff;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Replace "YOUR_API_KEY" with your actual API key -->
+<div id="map-container">
+    <button class="reload-button" onclick="reloadMap()">Reload</button>
+    <iframe
+        frameborder="0"
+        style="border:0"
+        src="https://www.google.com/maps/embed/v1/place?key=YOUR_API_KEY&q=Space+Needle,Seattle+WA">
+    </iframe>
+</div>
+
+<script>
+    function reloadMap() {
+        var iframe = document.querySelector('#map-container iframe');
+        iframe.src = iframe.src;
+    }
+</script>
+
+</body>
+</html>
